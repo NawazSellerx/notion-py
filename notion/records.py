@@ -124,3 +124,7 @@ class Record(object):
 
     def __hash__(self):
         return hash(self.id)
+
+    @property
+    def client(self):
+        return self._client
