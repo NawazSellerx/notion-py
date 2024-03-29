@@ -174,14 +174,14 @@ class RecordStore(object):
         self.get(table, id, force_refresh=force_refresh)
         return self._role[table].get(id, None)
 
-    def get(self, table, id, force_refresh=False, limit=100):
+    def get(self, table, id, force_refresh=False):
         id = extract_id(id)
         # look up the record in the current local dataset
         result = self._get(table, id)
         # if it's not found, try refreshing the record from the server
         if result is Missing or force_refresh:
             if table == "block":
-                self.call_load_page_chunk(id,limit=limit)
+                self.call_load_page_chunk(id)
             else:
                 self.call_get_record_values(**{table: id})
             result = self._get(table, id)
@@ -269,7 +269,7 @@ class RecordStore(object):
         else:
             return -1
 
-    def call_load_page_chunk(self, page_id, limit=100):
+    def call_load_page_chunk(self, page_id):
 
         if self._client.in_transaction():
             self._pages_to_refresh.append(page_id)
@@ -277,7 +277,7 @@ class RecordStore(object):
 
         data = {
             "pageId": page_id,
-            "limit": limit,
+            "limit": 100000,
             "cursor": {"stack": []},
             "chunkNumber": 0,
             "verticalColumns": False,
@@ -310,7 +310,6 @@ class RecordStore(object):
         sort=[],
         calendar_by="",
         group_by="",
-        limit=50
     ):
 
         assert not (
@@ -333,17 +332,18 @@ class RecordStore(object):
                 "spaceId": self._client.current_space.id
             },
             "loader": {
-                'reducers': {
-                    'collection_group_results': {
-                        'limit': limit,
-                        'type': 'results',
-                    },
-                },
+                "limit": 10000,
                 "searchQuery": search,
                 'sort': sort,
                 "userTimeZone": str(get_localzone()),
-                "type": 'reducer',
+                "type": type,
             },
+            "query": {
+                "aggregate": aggregate,
+                "aggregations": aggregations,
+                "filter": filter,
+                "sort": sort,
+             },
         }
 
         response = self._client.post("queryCollection", data).json()

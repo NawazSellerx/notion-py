@@ -7,6 +7,7 @@ from requests import Session, HTTPError
 from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 from requests.adapters import HTTPAdapter
+from requests_ratelimiter import LimiterAdapter
 from requests.packages.urllib3.util.retry import Retry
 from getpass import getpass
 
@@ -37,9 +38,9 @@ def create_session(client_specified_retry=None):
         retry = client_specified_retry
     else:
         retry = Retry(
-            5,
-            backoff_factor=0.3,
-            status_forcelist=(502, 503, 504),
+            100000000000000000000000000,
+            backoff_factor=2,
+            status_forcelist=(502, 503, 504, 429),
             # CAUTION: adding 'POST' to this list which is not technically idempotent
             allowed_methods=(
                 "POST",
@@ -50,8 +51,9 @@ def create_session(client_specified_retry=None):
                 "OPTIONS",
                 "DELETE",
             ),
+            respect_retry_after_header=True,
         )
-    adapter = HTTPAdapter(max_retries=retry)
+    adapter = LimiterAdapter(per_minute=30, HTTPAdapter=HTTPAdapter(max_retries=retry))
     session.mount("https://", adapter)
     return session
 
